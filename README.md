@@ -17,7 +17,7 @@ npx skills add nalpari/interplug-team-agent-skills@ip-commit-push  # 개별 설�
 | 스킬 | 설명 |
 |------|------|
 | [`ip-commit-push`](ip-commit-push/SKILL.md) | 한글 커밋 메세지 규칙에 맞게 의도 단위로 분할 커밋하고 푸시 |
-| [`ip-code-review`](ip-code-review/SKILL.md) | Orca 워커 5개(Opus 5 / Fable 5 / GPT 5.6 sol·terra·luna)로 PR 적대적 리뷰 + 상호 반박 토론 |
+| [`ip-code-review`](ip-code-review/SKILL.md) | codex + Claude Opus 5 가 동시에 PR 적대적 리뷰, 종합해서 머지 블로커 보고 |
 
 ## 새 스킬 추가하기
 

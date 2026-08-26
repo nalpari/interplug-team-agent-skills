@@ -18,6 +18,7 @@ npx skills add nalpari/interplug-team-agent-skills@ip-commit-push  # 개별 설�
 |------|------|
 | [`ip-commit-push`](ip-commit-push/SKILL.md) | 한글 커밋 메세지 규칙에 맞게 의도 단위로 분할 커밋하고 푸시 |
 | [`ip-code-review`](ip-code-review/SKILL.md) | codex + Claude Opus 5 가 동시에 PR 적대적 리뷰, 종합해서 머지 블로커 보고 |
+| [`ip-code-review-claude`](ip-code-review-claude/SKILL.md) | codex 없이 Claude 서브 에이전트 3개가 PR 적대적 리뷰, 머지 블로커만 코멘트 |
 
 ## 새 스킬 추가하기
 

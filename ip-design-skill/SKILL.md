@@ -1,6 +1,6 @@
 ---
 name: ip-design-skill
-description: '디자인 스킬 4종(frontend-design, design-taste-frontend, image-to-code, impeccable)을 방향→다이얼→이미지→구현→감사 순서로 물려서 한국어 화면을 설계·구현·감사한다. "디자인해줘", "화면 만들어줘", "UI 만들어줘", "랜딩페이지 만들어줘", "대시보드 화면 짜줘", "design this page", "build this UI" 처럼 화면·UI 제작을 요청할 때 사용한다. 빠진 스킬은 사용자 승인을 받은 뒤 설치한다. Claude Code 전용.'
+description: '디자인 스킬 4종(frontend-design, design-taste-frontend, image-to-code, impeccable)을 방향→다이얼→이미지→구현→감사 순서로 물려서 한국어 화면을 설계·구현·감사한다. "디자인해줘", "화면 만들어줘", "UI 만들어줘", "랜딩페이지 만들어줘", "대시보드 화면 짜줘", "design this page", "build this UI" 처럼 화면·UI 제작을 요청할 때 사용한다. 빠진 스킬은 설치 명령만 안내하고 직접 설치하지 않는다. Claude Code 전용.'
 ---
 
 # 디자인 4종 세트로 만든다
@@ -10,159 +10,55 @@ description: '디자인 스킬 4종(frontend-design, design-taste-frontend, imag
 라고 길게 치는 걸 없애는 것이 이 스킬의 목적이다. 그러니 **묻지 말고 바로 시작한다.**
 무엇을 만들지 알 수 없을 때만 한 줄로 물어본다.
 
-## 0단계: 준비 — Claude Code 전용
+## 0단계: 준비 — 확인만 한다
 
-이 단계의 확인 경로와 설치 경로는 **Claude Code 기준(`.claude/skills/`)이다.**
-Codex·Cursor 에서 실행 중이면 0단계를 건너뛰고, 4종이 이미 설치돼 있는지
-**사용자에게 먼저 확인한 뒤** 1단계로 간다. 확인 없이 진행하면 4종 없이 만든 결과를
-4종으로 만든 결과로 오인하게 된다.
+**4종을 자동으로 설치하지 않는다.** 확인해서 빠진 게 있으면 설치 명령을 보여주고,
+실행은 사용자에게 맡긴다. 서드파티 SKILL.md 는 에이전트가 그대로 따르는 지시문이고
+`impeccable` 은 `.mjs` 실행 스크립트와 훅 런타임까지 같이 깔린다.
+"화면 만들어줘" 한 마디가 그 설치의 승인이 될 수는 없다. 머신당 한 번 있는 일을
+자동화하려고 에이전트에게 파괴적인 설치 권한을 주지 않는다.
 
-4종 중 3개(`design-taste-frontend`, `image-to-code`, `impeccable`)만 이 루프로 확인한다.
-`frontend-design` 은 스킬이 아니라 마켓플레이스 플러그인이라 `.claude/skills/` 가 아닌
-`~/.claude/plugins/` 밑에 깔린다. 여기서는 잡히지 않으므로 1단계에서 직접 확인한다.
+확인 경로는 **Claude Code 기준(`.claude/skills/`)이다.** Codex·Cursor 에서 실행 중이면
+이 루프를 건너뛰고 4종이 설치돼 있는지 사용자에게 물어본 뒤 1단계로 간다.
+
+`frontend-design` 은 스킬이 아니라 마켓플레이스 플러그인이라 `~/.claude/plugins/` 밑에 깔린다.
+여기서는 안 잡히므로 1단계에서 직접 확인한다.
 
 ```bash
-NEED=""
 for s in design-taste-frontend image-to-code impeccable; do
-  state=missing
-  for base in ".claude/skills" "$HOME/.claude/skills"; do
-    if   [ -f "$base/$s/SKILL.md" ]; then state=ok; break
-    elif [ -e "$base/$s" ];          then state="conflict:$base/$s"; break
-    fi
-  done
-  case "$state" in
-    ok)      ;;
-    missing) NEED="$NEED $s" ;;
-    *)       echo "CONFLICT:$s -> ${state#conflict:}" ;;
-  esac
+  [ -f ".claude/skills/$s/SKILL.md" ] || [ -f "$HOME/.claude/skills/$s/SKILL.md" ] \
+    || echo "MISSING:$s"
 done
-echo "NEED:$NEED"
 ```
 
-`NEED` 가 비어 있고 `CONFLICT` 도 없으면 **이 단계를 통째로 건너뛰고 1단계로 간다.**
-보고도 하지 않는다. 준비됐다는 말은 사용자가 원한 결과물이 아니다.
+아무것도 안 나오면 **이 단계를 통째로 건너뛰고 1단계로 간다.** 보고도 하지 않는다.
+준비됐다는 말은 사용자가 원한 결과물이 아니다.
 
-**`CONFLICT` 가 하나라도 나오면 거기서 멈추고 사용자에게 알린다.** 그 이름으로 뭔가가
-이미 있는데 `SKILL.md` 가 없는 상태다. 작업 중인 자체 스킬이거나, 중단된 설치이거나,
-이름 충돌이다. 설치로 넘어가면 안 된다. `skills add --copy` 는 복사 전에 **목적지를
-통째로 지우고 다시 만든다** (`cleanAndCreateDirectory`). 그 안의 사용자 파일은 복구할 수 없다.
-디렉토리가 아니라 같은 이름의 **파일**이 있어도 마찬가지라서 `-d` 가 아니라 `-e` 로 본다.
-(끊어진 심볼릭 링크는 `-e` 도 false 라 `missing` 으로 간다. 잃는 게 죽은 링크뿐이라 그대로 둔다.)
-사용자가 그것을 치우기 전에는 해당 스킬을 설치하지 않는다.
-
-### 빠진 게 있어도 자동으로 설치하지 않는다
-
-서드파티 레포의 SKILL.md 는 에이전트가 그대로 따르는 지시문이다. 코드 의존성과 같은
-무게로 다룬다. **설치 명령을 보여주고 사용자 승인을 받은 뒤에만 실행한다.**
-"화면 만들어줘" 한 마디가 외부 지시문 설치 승인이 될 수는 없다.
-
-승인을 요청할 때 네 가지를 같이 적는다:
-
-- 무엇이 빠졌는지 — `NEED` 에 담긴 것만
-- 어디서 받는지 — 레포 주소와 아래의 **고정 커밋 SHA**
-- 어디에 깔리는지 — 프로젝트의 `.claude/skills/`. 전역이 아니라 **사용자의 워킹트리**다
-- **무엇이 들어오는지** — 프롬프트 문서만이 아니다. `impeccable` 만 해도 `.mjs` 실행
-  스크립트 100여 개와 훅 런타임, 서브에이전트 정의가 함께 깔린다. 전부 에이전트 권한으로
-  실행된다. `.gitignore` 에 넣을지도 같이 물어본다
-
-승인받으면 아래를 실행한다. **`APPROVED` 에 사용자가 방금 승인한 이름만 적는다.**
-`NEED` 를 셸 변수로 넘겨받으려 하지 마라. 승인 문답이 끼면 셸이 바뀌어 값이 사라지고,
-확인 루프를 다시 돌리면 **거절당한 스킬까지 되살아난다.**
+빠진 게 있으면 해당 줄만 사용자에게 보여주고 **직접 실행하라고 안내한다.**
 
 ```bash
-set -euo pipefail
-APPROVED=""   # 사용자가 방금 승인한 이름만 여기 적는다. 비어 있으면 아무것도 설치하지 않는다
+# design-taste-frontend, image-to-code
+d=$(mktemp -d) && git clone -q --filter=blob:none https://github.com/Leonxlnx/taste-skill "$d" \
+  && git -C "$d" checkout -q ccbc15639c97057cbfcf32ecebc38ef716e4bb37 \
+  && npx --yes skills@1.5.23 add "$d" --skill design-taste-frontend --agent claude-code --yes --copy \
+  && npx --yes skills@1.5.23 add "$d" --skill image-to-code --agent claude-code --yes --copy; rm -rf "$d"
 
-bak=$(mktemp ./skills-lock.json.bak.XXXXXX); had=0   # 락파일 옆에, 고유 이름으로
-mkdir .skills-install.lock 2>/dev/null \
-  || { echo "ABORT: 이 디렉토리에서 다른 설치가 진행 중이다"; rm -f "$bak"; exit 1; }
-if [ -e skills-lock.json ]; then cp skills-lock.json "$bak"; had=1; fi
-trap 'if [ "$had" = 1 ]; then mv -f "$bak" skills-lock.json; else rm -f skills-lock.json "$bak"; fi
-      rmdir .skills-install.lock' EXIT
-
-src() { case "$1" in
-  design-taste-frontend|image-to-code)
-    echo "https://github.com/Leonxlnx/taste-skill ccbc15639c97057cbfcf32ecebc38ef716e4bb37" ;;
-  impeccable)
-    echo "https://github.com/pbakaus/impeccable 63b04e2530f5c7b41ea83c133daab24f34912456" ;;  # skill-v4.1.2
-esac; }
-
-for s in $APPROVED; do
-  state=missing                                    # 설치 직전 다시 판정한다. 덮어쓰기 최후 방어선
-  for base in ".claude/skills" "$HOME/.claude/skills"; do
-    if   [ -f "$base/$s/SKILL.md" ]; then state=ok; break
-    elif [ -e "$base/$s" ];          then state="conflict:$base/$s"; break
-    fi
-  done
-  case "$state" in
-    ok)      echo "SKIP:$s 이미 설치돼 있다"; continue ;;
-    missing) ;;
-    *)       echo "ABORT:$s -> ${state#conflict:} 가 이미 있다"; exit 1 ;;
-  esac
-
-  set -- $(src "$s"); repo=$1; sha=$2
-  d=$(mktemp -d)                                   # 고정 경로 금지. /tmp 는 누구나 쓴다
-  git clone -q --filter=blob:none "$repo" "$d"
-  git -C "$d" checkout -q "$sha"
-  [ "$(git -C "$d" rev-parse HEAD)" = "$sha" ] && [ -z "$(git -C "$d" status --porcelain)" ] \
-    || { echo "FAIL:$s 고정 검증 실패"; rm -rf "$d"; exit 1; }
-  npx --yes skills@1.5.23 add "$d" --skill "$s" --agent claude-code --yes --copy
-  rm -rf "$d"
-done
+# impeccable
+d=$(mktemp -d) && git clone -q --filter=blob:none https://github.com/pbakaus/impeccable "$d" \
+  && git -C "$d" checkout -q 63b04e2530f5c7b41ea83c133daab24f34912456 \
+  && npx --yes skills@1.5.23 add "$d" --skill impeccable --agent claude-code --yes --copy; rm -rf "$d"
 ```
 
-두 코드 블록은 **프로젝트 루트에서** 돌린다. `.claude/skills` 를 상대 경로로 보기 때문에
-CWD 가 다르면 확인한 곳과 설치한 곳이 달라진다.
+명령과 함께 알려줄 것:
 
-이 스크립트가 지키는 것들이다. 손으로 명령을 쪼개 실행하면서 빼먹지 않는다:
+- **`--copy` 는 목적지 디렉토리를 지우고 다시 만든다.** `.claude/skills/` 에 같은 이름으로
+  뭘 만들어 뒀으면 먼저 옮긴다. 그 안의 파일은 복구할 수 없다
+- 설치하면 `skills-lock.json` 에 방금 지운 temp 경로가 적힌다. 커밋하지 말고 되돌린다
+- 커밋 SHA 로 고정한 이유는 `skills add <repo>@<ref>` 가 내부적으로 `git clone --branch <ref>`
+  라서 SHA 를 못 받기 때문이다. SHA 로 체크아웃한 클론을 로컬 경로로 넘기는 것이 고정 방법이다
 
-- **`APPROVED` 에 넣어도 이미 있으면 설치하지 않는다.** 설치 직전에 다시 판정해서
-  `ok` 면 건너뛰고 `conflict` 면 멈춘다. `--yes --copy` 가 사용자 파일을 지우는 걸
-  막는 마지막 지점이다
-- **`mktemp -d` 로 매번 새 디렉토리에 받는다.** `/tmp/taste-skill` 같은 고정 경로는
-  두 번째 실행에서 `already exists` 로 clone 이 실패하고, 그 자리에 남아 있던
-  낡거나 남이 심어둔 트리가 대신 설치된다. 커밋 고정이 조용히 무효가 되는 경로다
-- **`set -euo pipefail`** — clone 이나 checkout 이 실패하면 즉시 멈춘다. 다음 줄로 넘어가지 않는다
-- **설치 전에 SHA 와 워킹트리를 확인한다.** `rev-parse HEAD` 가 기대한 SHA 와 같고
-  `status --porcelain` 이 비어 있어야 설치로 넘어간다
-- **설치 후 받은 디렉토리를 지운다**
-- **`skills-lock.json` 을 원래대로 되돌린다.** 로컬 경로로 설치하면 CLI 가 이 락파일에
-  항목을 추가하는데, 거기 적히는 source 는 레포+SHA 가 아니라 **방금 지운 temp 경로**다
-  (`"source": "../tmp.868MM81Ota", "sourceType": "local"`). 커밋되면 그 경로 이름이 공개되고,
-  누가 `skills experimental_install` 로 복원하면 SHA 검증도 승인도 없이 그 경로의 내용이 깔린다.
-  그렇다고 파일을 지우면 안 된다. 이 락파일은 **프로젝트 전체 레지스트리**라서 CLI 가
-  기존 항목을 병합해 쓴다. 지우면 팀이 등록해둔 다른 스킬까지 사라진다.
-  그래서 설치 전에 백업하고 `trap ... EXIT` 로 원본을 되돌린다. 원래 없었으면 지운다.
-  중간에 `ABORT` 나 `FAIL` 로 죽어도, `Ctrl-C` 로 끊어도 실행되는 자리다.
-  백업은 락파일 옆에 `mktemp` 로 고유 이름을 뽑고, 복원 여부는 파일 존재가 아니라
-  `had` 플래그로 판단한다. 이름만 고유해서는 부족하다. 같은 디렉토리에서 둘이 동시에 돌면
-  나중 실행이 **앞선 실행이 이미 오염시킨 락파일을 "원본" 으로 캡처**해서 되돌려 놓는다.
-  둘 다 성공으로 끝나고 temp 경로가 영구히 남는다. 그래서 `mkdir` 뮤텍스로 감싼다.
-  고정 이름을 쓰면 남의 파일을 덮거나, 앞선 실행이 남긴 고아 파일을 "원본" 으로 복원한다.
-  락파일과 같은 디렉토리에 두는 이유는 두 가지다. `mv` 가 파일시스템을 넘지 않고,
-  강제 종료 후에 사람이 찾을 수 있다.
-  `kill -9` 로 trap 조차 못 돌았으면 다시 돌리지 말고 이 순서로 되돌린다:
-  `skills-lock.json.bak.*` 가 남아 있으면 그걸 `skills-lock.json` 으로 되돌린다.
-  백업도 없고 git 이 추적하지도 않으면 `rm -f skills-lock.json` 이다 (원래 없던 파일이다).
-  `git checkout --` 는 추적 중이면서 백업도 없을 때만 쓴다.
-  커밋 안 한 정상 편집이 같이 날아간다. **락파일로 복원하지 않는다.**
-  재설치는 이 스크립트를 다시 돌린다
-
-CLI 로 바로 받지 않고 clone 을 거치는 이유가 있다. `skills add <repo>@<ref>` 는 내부적으로
-`git clone --branch <ref>` 라서 **커밋 SHA 를 넣으면 실패한다**
-(`fatal: Remote branch <sha> not found in upstream origin`). 태그나 브랜치만 받는다.
-로컬 경로는 그대로 받으므로, SHA 로 체크아웃한 클론을 넘기는 것이 커밋 고정 방법이다.
-`Leonxlnx/taste-skill` 은 릴리스 태그가 아예 없어서 이 방법 말고는 고정할 수가 없다.
-
-CLI 버전(`skills@1.5.23`)도 고정한다. `@latest` 는 매번 다른 코드를 받는 것과 같다.
-`--copy` 는 심볼릭 링크 대신 실제 파일을 복사한다. git 으로 공유할 때 링크는 저쪽에서 깨진다.
-
-설치 후 **위의 확인 루프를 다시 돌려** `NEED` 가 비었는지 본다. 설치했다는 말은
-설치됐다는 증거가 아니다. 남아 있으면 그것만 보고한다.
-
-설치가 끝났으면 "무엇을 깔았다" 한 줄만 남기고 바로 1단계로 넘어간다.
-사용자가 설치를 거절했거나 확인 루프에 여전히 남은 게 있으면
-**어느 단계가 빠진 채로 진행되는지 밝히고** 1단계로 간다.
+**사용자가 설치하지 않고 그냥 진행하라고 하면 그렇게 한다.** 어느 단계가 빠진 채로
+가는지만 밝히고 1단계로 넘어간다.
 
 ## 언어 규칙 — 한국어로 제작한다
 

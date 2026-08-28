@@ -38,30 +38,46 @@ done
 승인을 요청할 때 세 가지를 같이 적는다:
 
 - 무엇이 빠졌는지 — `MISSING:` 으로 나온 것만
-- 어디서 받는지 — 레포 주소와 고정된 버전
-- `Leonxlnx/taste-skill` 은 릴리스 태그가 없어 **버전 고정이 불가능하고 main HEAD 를 받는다**
+- 어디서 받는지 — 레포 주소와 아래의 **고정 커밋 SHA**
+- 어디에 깔리는지 — `.claude/skills/`
 
-승인받은 뒤, 빠진 것만 골라서 설치한다. 레포가 둘이라 명령이 둘이다:
+승인받으면 먼저 레포를 고정 커밋으로 받는다:
 
 ```bash
-# pbakaus/impeccable — 태그로 고정
-npx --yes skills@1.5.23 add https://github.com/pbakaus/impeccable/tree/skill-v4.1.2 \
-  --skill impeccable --agent claude-code --yes --copy
+git clone --filter=blob:none https://github.com/Leonxlnx/taste-skill /tmp/taste-skill
+git -C /tmp/taste-skill checkout ccbc15639c97057cbfcf32ecebc38ef716e4bb37
 
-# Leonxlnx/taste-skill — 태그가 없다. main HEAD 를 받는 것에 승인받았을 때만 실행한다
-npx --yes skills@1.5.23 add Leonxlnx/taste-skill \
-  --skill design-taste-frontend --skill image-to-code \
-  --agent claude-code --yes --copy
+git clone --filter=blob:none https://github.com/pbakaus/impeccable /tmp/impeccable
+git -C /tmp/impeccable checkout 63b04e2530f5c7b41ea83c133daab24f34912456  # skill-v4.1.2
 ```
 
-- **`MISSING:` 으로 나온 것만 `--skill` 에 넣는다.** 이미 설치된 스킬을 다시 지정하면
-  사용자가 손댄 파일을 덮어쓴다.
+그다음 **스킬 하나당 한 줄**로 설치한다. `MISSING:` 에 나온 줄만 실행한다:
+
+```bash
+npx --yes skills@1.5.23 add /tmp/taste-skill --skill design-taste-frontend --agent claude-code --yes --copy
+npx --yes skills@1.5.23 add /tmp/taste-skill --skill image-to-code         --agent claude-code --yes --copy
+npx --yes skills@1.5.23 add /tmp/impeccable  --skill impeccable            --agent claude-code --yes --copy
+```
+
+**세 줄을 통째로 복사해 실행하지 않는다.** `--yes --copy` 는 기존 파일을 덮어쓴다.
+이미 있는 스킬의 줄까지 같이 돌리면 사용자가 고쳐 쓴 SKILL.md 가 복구 불가능하게 사라진다.
+
+CLI 로 바로 받지 않고 clone 을 거치는 이유가 있다. `skills add <repo>@<ref>` 는 내부적으로
+`git clone --branch <ref>` 라서 **커밋 SHA 를 넣으면 실패한다**
+(`fatal: Remote branch <sha> not found in upstream origin`). 태그나 브랜치만 받는다.
+로컬 경로는 그대로 받으므로, SHA 로 체크아웃한 클론을 넘기는 것이 커밋 고정 방법이다.
+`Leonxlnx/taste-skill` 은 릴리스 태그가 아예 없어서 이 방법 말고는 고정할 수가 없다.
+
 - CLI 버전(`skills@1.5.23`)도 고정한다. `@latest` 는 매번 다른 코드를 받는 것과 같다.
-- `--skill a,b` 처럼 콤마로 묶으면 스킬을 못 찾고 목록만 뱉는다. 플래그를 반복해야 한다.
+- `--skill a,b` 처럼 콤마로 묶으면 스킬을 못 찾고 목록만 뱉는다. 한 줄에 하나씩 쓴다.
 - `--copy` 는 심볼릭 링크 대신 실제 파일을 복사한다. git 으로 공유할 때 링크는 저쪽에서 깨진다.
 
-설치했으면 "무엇을 깔았다" 한 줄만 남기고 바로 1단계로 넘어간다.
-사용자가 설치를 거절하면 **어느 단계가 빠진 채로 진행되는지 밝히고** 1단계로 간다.
+설치 후 **위의 확인 루프를 다시 돌려** `MISSING:` 이 사라졌는지 본다. 설치했다는 말은
+설치됐다는 증거가 아니다. 남아 있으면 그것만 보고한다.
+
+설치가 끝났으면 "무엇을 깔았다" 한 줄만 남기고 바로 1단계로 넘어간다.
+사용자가 설치를 거절했거나 확인 루프에 여전히 남은 게 있으면
+**어느 단계가 빠진 채로 진행되는지 밝히고** 1단계로 간다.
 
 ## 언어 규칙 — 한국어로 제작한다
 

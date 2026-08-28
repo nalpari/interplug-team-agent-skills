@@ -41,26 +41,42 @@ done
 - 어디서 받는지 — 레포 주소와 아래의 **고정 커밋 SHA**
 - 어디에 깔리는지 — `.claude/skills/`
 
-승인받으면 먼저 레포를 고정 커밋으로 받는다:
+승인받으면 아래 스크립트를 실행한다. `NEED` 에 **`MISSING:` 으로 나왔고 승인받은 스킬만** 적는다.
 
 ```bash
-git clone --filter=blob:none https://github.com/Leonxlnx/taste-skill /tmp/taste-skill
-git -C /tmp/taste-skill checkout ccbc15639c97057cbfcf32ecebc38ef716e4bb37
+set -euo pipefail
+NEED="design-taste-frontend image-to-code impeccable"   # 실제로 빠진 것만 남긴다
 
-git clone --filter=blob:none https://github.com/pbakaus/impeccable /tmp/impeccable
-git -C /tmp/impeccable checkout 63b04e2530f5c7b41ea83c133daab24f34912456  # skill-v4.1.2
+src() { case "$1" in
+  design-taste-frontend|image-to-code)
+    echo "https://github.com/Leonxlnx/taste-skill ccbc15639c97057cbfcf32ecebc38ef716e4bb37" ;;
+  impeccable)
+    echo "https://github.com/pbakaus/impeccable 63b04e2530f5c7b41ea83c133daab24f34912456" ;;  # skill-v4.1.2
+esac; }
+
+for s in $NEED; do
+  set -- $(src "$s"); repo=$1; sha=$2
+  d=$(mktemp -d)                                   # 고정 경로 금지. /tmp 는 누구나 쓴다
+  git clone -q --filter=blob:none "$repo" "$d"
+  git -C "$d" checkout -q "$sha"
+  [ "$(git -C "$d" rev-parse HEAD)" = "$sha" ] && [ -z "$(git -C "$d" status --porcelain)" ] \
+    || { echo "FAIL:$s 고정 검증 실패"; rm -rf "$d"; exit 1; }
+  npx --yes skills@1.5.23 add "$d" --skill "$s" --agent claude-code --yes --copy
+  rm -rf "$d"
+done
 ```
 
-그다음 **스킬 하나당 한 줄**로 설치한다. `MISSING:` 에 나온 줄만 실행한다:
+이 스크립트가 지키는 것들이다. 손으로 명령을 쪼개 실행하면서 빼먹지 않는다:
 
-```bash
-npx --yes skills@1.5.23 add /tmp/taste-skill --skill design-taste-frontend --agent claude-code --yes --copy
-npx --yes skills@1.5.23 add /tmp/taste-skill --skill image-to-code         --agent claude-code --yes --copy
-npx --yes skills@1.5.23 add /tmp/impeccable  --skill impeccable            --agent claude-code --yes --copy
-```
-
-**세 줄을 통째로 복사해 실행하지 않는다.** `--yes --copy` 는 기존 파일을 덮어쓴다.
-이미 있는 스킬의 줄까지 같이 돌리면 사용자가 고쳐 쓴 SKILL.md 가 복구 불가능하게 사라진다.
+- **`NEED` 에 없는 스킬은 건드리지 않는다.** `--yes --copy` 는 기존 파일을 덮어쓰므로,
+  이미 있는 스킬을 목록에 넣으면 사용자가 고쳐 쓴 SKILL.md 가 복구 불가능하게 사라진다
+- **`mktemp -d` 로 매번 새 디렉토리에 받는다.** `/tmp/taste-skill` 같은 고정 경로는
+  두 번째 실행에서 `already exists` 로 clone 이 실패하고, 그 자리에 남아 있던
+  낡거나 남이 심어둔 트리가 대신 설치된다. 커밋 고정이 조용히 무효가 되는 경로다
+- **`set -euo pipefail`** — clone 이나 checkout 이 실패하면 즉시 멈춘다. 다음 줄로 넘어가지 않는다
+- **설치 전에 SHA 와 워킹트리를 확인한다.** `rev-parse HEAD` 가 기대한 SHA 와 같고
+  `status --porcelain` 이 비어 있어야 설치로 넘어간다
+- **설치 후 받은 디렉토리를 지운다**
 
 CLI 로 바로 받지 않고 clone 을 거치는 이유가 있다. `skills add <repo>@<ref>` 는 내부적으로
 `git clone --branch <ref>` 라서 **커밋 SHA 를 넣으면 실패한다**
@@ -68,9 +84,8 @@ CLI 로 바로 받지 않고 clone 을 거치는 이유가 있다. `skills add <
 로컬 경로는 그대로 받으므로, SHA 로 체크아웃한 클론을 넘기는 것이 커밋 고정 방법이다.
 `Leonxlnx/taste-skill` 은 릴리스 태그가 아예 없어서 이 방법 말고는 고정할 수가 없다.
 
-- CLI 버전(`skills@1.5.23`)도 고정한다. `@latest` 는 매번 다른 코드를 받는 것과 같다.
-- `--skill a,b` 처럼 콤마로 묶으면 스킬을 못 찾고 목록만 뱉는다. 한 줄에 하나씩 쓴다.
-- `--copy` 는 심볼릭 링크 대신 실제 파일을 복사한다. git 으로 공유할 때 링크는 저쪽에서 깨진다.
+CLI 버전(`skills@1.5.23`)도 고정한다. `@latest` 는 매번 다른 코드를 받는 것과 같다.
+`--copy` 는 심볼릭 링크 대신 실제 파일을 복사한다. git 으로 공유할 때 링크는 저쪽에서 깨진다.
 
 설치 후 **위의 확인 루프를 다시 돌려** `MISSING:` 이 사라졌는지 본다. 설치했다는 말은
 설치됐다는 증거가 아니다. 남아 있으면 그것만 보고한다.

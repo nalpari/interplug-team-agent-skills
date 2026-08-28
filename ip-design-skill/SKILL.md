@@ -1,6 +1,6 @@
 ---
 name: ip-design-skill
-description: '디자인 스킬 4종(frontend-design, design-taste-frontend, image-to-code, impeccable)을 방향→다이얼→이미지→구현→감사 순서로 물려서 한국어 화면을 설계·구현·감사한다. "디자인해줘", "화면 만들어줘", "UI 만들어줘", "랜딩페이지 만들어줘", "대시보드 화면 짜줘", "design this page", "build this UI" 처럼 화면·UI 제작을 요청할 때 사용한다. 없는 스킬은 자동 설치한다.'
+description: '디자인 스킬 4종(frontend-design, design-taste-frontend, image-to-code, impeccable)을 방향→다이얼→이미지→구현→감사 순서로 물려서 한국어 화면을 설계·구현·감사한다. "디자인해줘", "화면 만들어줘", "UI 만들어줘", "랜딩페이지 만들어줘", "대시보드 화면 짜줘", "design this page", "build this UI" 처럼 화면·UI 제작을 요청할 때 사용한다. 빠진 스킬은 사용자 승인을 받은 뒤 설치한다. Claude Code 전용.'
 ---
 
 # 디자인 4종 세트로 만든다
@@ -10,36 +10,58 @@ description: '디자인 스킬 4종(frontend-design, design-taste-frontend, imag
 라고 길게 치는 걸 없애는 것이 이 스킬의 목적이다. 그러니 **묻지 말고 바로 시작한다.**
 무엇을 만들지 알 수 없을 때만 한 줄로 물어본다.
 
-## 0단계: 준비 (조용히, 빠르게)
+## 0단계: 준비 — Claude Code 전용
+
+이 단계의 확인 경로와 설치 경로는 **Claude Code 기준(`.claude/skills/`)이다.**
+Codex·Cursor 에서 실행 중이면 0단계를 건너뛰고, 4종이 이미 설치돼 있는지
+**사용자에게 먼저 확인한 뒤** 1단계로 간다. 확인 없이 진행하면 4종 없이 만든 결과를
+4종으로 만든 결과로 오인하게 된다.
 
 4종 중 3개는 프로젝트 스킬, `frontend-design` 은 공식 플러그인이라 전역에 이미 있다.
 
 ```bash
 for s in design-taste-frontend image-to-code impeccable; do
-  [ -f ".claude/skills/$s/SKILL.md" ] || echo "MISSING:$s"
+  [ -f ".claude/skills/$s/SKILL.md" ] || [ -f "$HOME/.claude/skills/$s/SKILL.md" ] \
+    || echo "MISSING:$s"
 done
 ```
 
 아무것도 안 나오면 **이 단계를 통째로 건너뛰고 1단계로 간다.** 보고도 하지 않는다.
 준비됐다는 말은 사용자가 원한 결과물이 아니다.
 
-빠진 게 있을 때만 설치한다. 레포가 둘이라 명령이 둘이다:
+### 빠진 게 있어도 자동으로 설치하지 않는다
+
+서드파티 레포의 SKILL.md 는 에이전트가 그대로 따르는 지시문이다. 코드 의존성과 같은
+무게로 다룬다. **설치 명령을 보여주고 사용자 승인을 받은 뒤에만 실행한다.**
+"화면 만들어줘" 한 마디가 외부 지시문 설치 승인이 될 수는 없다.
+
+승인을 요청할 때 세 가지를 같이 적는다:
+
+- 무엇이 빠졌는지 — `MISSING:` 으로 나온 것만
+- 어디서 받는지 — 레포 주소와 고정된 버전
+- `Leonxlnx/taste-skill` 은 릴리스 태그가 없어 **버전 고정이 불가능하고 main HEAD 를 받는다**
+
+승인받은 뒤, 빠진 것만 골라서 설치한다. 레포가 둘이라 명령이 둘이다:
 
 ```bash
-# Leonxlnx/taste-skill — 빠진 것만 --skill 로 지정
-npx --yes skills@latest add Leonxlnx/taste-skill \
+# pbakaus/impeccable — 태그로 고정
+npx --yes skills@1.5.23 add https://github.com/pbakaus/impeccable/tree/skill-v4.1.2 \
+  --skill impeccable --agent claude-code --yes --copy
+
+# Leonxlnx/taste-skill — 태그가 없다. main HEAD 를 받는 것에 승인받았을 때만 실행한다
+npx --yes skills@1.5.23 add Leonxlnx/taste-skill \
   --skill design-taste-frontend --skill image-to-code \
   --agent claude-code --yes --copy
-
-# pbakaus/impeccable
-npx --yes skills@latest add pbakaus/impeccable \
-  --skill impeccable --agent claude-code --yes --copy
 ```
 
-`--skill a,b` 처럼 콤마로 묶으면 스킬을 못 찾고 목록만 뱉는다. 플래그를 반복해야 한다.
-`--copy` 는 심볼릭 링크 대신 실제 파일을 복사한다. git 으로 공유할 때 링크는 저쪽에서 깨진다.
+- **`MISSING:` 으로 나온 것만 `--skill` 에 넣는다.** 이미 설치된 스킬을 다시 지정하면
+  사용자가 손댄 파일을 덮어쓴다.
+- CLI 버전(`skills@1.5.23`)도 고정한다. `@latest` 는 매번 다른 코드를 받는 것과 같다.
+- `--skill a,b` 처럼 콤마로 묶으면 스킬을 못 찾고 목록만 뱉는다. 플래그를 반복해야 한다.
+- `--copy` 는 심볼릭 링크 대신 실제 파일을 복사한다. git 으로 공유할 때 링크는 저쪽에서 깨진다.
 
 설치했으면 "무엇을 깔았다" 한 줄만 남기고 바로 1단계로 넘어간다.
+사용자가 설치를 거절하면 **어느 단계가 빠진 채로 진행되는지 밝히고** 1단계로 간다.
 
 ## 언어 규칙 — 한국어로 제작한다
 
